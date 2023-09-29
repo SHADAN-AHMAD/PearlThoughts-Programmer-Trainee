@@ -1,0 +1,74 @@
+from flask import Flask, jsonify, request
+
+app = Flask(__name__)
+
+# Initialize dummy data for demonstration
+doctors = [
+    {
+        "id": 1,
+        "name": "Dr. John Doe",
+        "max_patients": 5,
+        "available_days": ["Monday", "Wednesday", "Friday"],
+    },
+    {
+        "id": 2,
+        "name": "Dr. Jane Smith",
+        "max_patients": 7,
+        "available_days": ["Tuesday", "Thursday"],
+    }
+]
+
+# Initialize a list to store appointments
+appointments = []
+
+# Dummy data for demonstration
+for i in range(1, 8):
+    appointments.append({
+        "id": i,
+        "doctor_id": 1,
+        "date": f"2023-09-30",
+        "time": f"1{i}:00 PM"
+    })
+
+@app.route('/doctors', methods=['GET'])
+def get_doctors():
+    return jsonify(doctors)
+
+@app.route('/doctors/<int:doctor_id>', methods=['GET'])
+def get_doctor(doctor_id):
+    doctor = next((d for d in doctors if d['id'] == doctor_id), None)
+    if doctor is not None:
+        return jsonify(doctor)
+    return jsonify({"message": "Doctor not found"}), 404
+
+@app.route('/appointments', methods=['POST'])
+def book_appointment():
+    data = request.json
+
+    doctor_id = data.get('doctor_id')
+    date = data.get('date')
+    time = data.get('time')
+
+    doctor = next((d for d in doctors if d['id'] == doctor_id), None)
+    if doctor is not None:
+        # Check if the doctor is available on the requested day
+        if date in doctor['available_days']:
+            # Check if the doctor has available slots
+            if len([a for a in appointments if a['doctor_id'] == doctor_id and a['date'] == date]) < doctor['max_patients']:
+                new_appointment = {
+                    "id": len(appointments) + 1,
+                    "doctor_id": doctor_id,
+                    "date": date,
+                    "time": time
+                }
+                appointments.append(new_appointment)
+                return jsonify(new_appointment), 201
+            else:
+                return jsonify({"message": "Doctor is fully booked for this day"}), 400
+        else:
+            return jsonify({"message": "Doctor is not available on this day"}), 400
+    else:
+        return jsonify({"message": "Doctor not found"}), 404
+
+if __name__ == '__main__':
+    app.run(debug=True)
